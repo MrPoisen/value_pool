@@ -63,18 +63,18 @@ pub struct DoubleLinkedList<T> {
     store: ValuePool<DoubleLinkedNode<T>>,
     start: ValueRef<DoubleLinkedNode<T>>,
     end: ValueRef<DoubleLinkedNode<T>>,
-    length: usize,
+    len: usize,
 }
 
 impl<T> DoubleLinkedList<T> {
     fn index_to_valueref(&self, index: usize) -> Option<ValueRef<DoubleLinkedNode<T>>> {
-        if index >= self.length {
+        if index >= self.len() {
             return None;
         }
-        if index > self.length / 2 {
+        if index > self.len() / 2 {
             let mut node_idx = self.end;
             let mut iteration_index = index;
-            while iteration_index < self.length - 1 {
+            while iteration_index < self.len() - 1 {
                 // cause self.length-1 is the last index
                 node_idx = self.store.get(node_idx)?.prev?;
                 iteration_index += 1;
@@ -123,7 +123,7 @@ impl<T> DoubleLinkedList<T> {
             store: (store),
             start: (ValueRef::new(0)),
             end: (ValueRef::new(0)),
-            length: (0),
+            len: (0),
         }
     }
 
@@ -133,14 +133,14 @@ impl<T> DoubleLinkedList<T> {
             store: (store),
             start: (ValueRef::new(0)),
             end: (ValueRef::new(0)),
-            length: (0),
+            len: (0),
         }
     }
 
     pub fn push(&mut self, value: T) -> DoubleLinkedView<T> {
-        self.length += 1;
+        self.len += 1;
 
-        if self.store.len() == 0 {
+        if self.store.element_count() == 0 {
             self.start = self.store.push(DoubleLinkedNode {
                 value: (value),
                 prev: (None),
@@ -169,8 +169,8 @@ impl<T> DoubleLinkedList<T> {
 
     pub fn push_front(&mut self, value: T) -> DoubleLinkedView<T> {
         //
-        if self.length == 0 {
-            self.length += 1;
+        if self.len == 0 {
+            self.len += 1;
             self.start = self.store.push(DoubleLinkedNode {
                 value: (value),
                 prev: (None),
@@ -192,10 +192,10 @@ impl<T> DoubleLinkedList<T> {
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        if self.length == 0 {
+        if self.len == 0 {
             return None;
         }
-        self.length -= 1;
+        self.len -= 1;
 
         let last_node = self.store.get_mut(self.end)?;
         let before_last_ref = last_node.prev.unwrap_or(ValueRef::new(0)); // in case this is the first value
@@ -378,7 +378,7 @@ impl<T> DoubleLinkedList<T> {
         };
 
         let new_node_ref = self.store.push(new_node);
-        self.length += 1;
+        self.len += 1;
 
         // modify old left node
         if let Some(left) = view_node_prev {
@@ -408,7 +408,7 @@ impl<T> DoubleLinkedList<T> {
         };
 
         let new_node_ref = self.store.push(new_node);
-        self.length += 1;
+        self.len += 1;
 
         // modify old left node
         if let Some(right) = view_node_next {
@@ -438,7 +438,7 @@ impl<T> DoubleLinkedList<T> {
     }
 
     pub fn len(&self) -> usize {
-        self.length
+        self.store.element_count()
     }
 
     pub fn iter(&self) -> DoubleLinkedListIterator<T> {
@@ -658,10 +658,10 @@ mod test {
     fn test_inner_swap() {
         let mut l = get_ll(); // [32,12,55,12]
         let mut view1 = l.get_view(0).unwrap(); // 32
-        let mut view2 = l.get_view(l.len() - 1).unwrap(); // last 12
+        let view2 = l.get_view(l.len() - 1).unwrap(); // last 12
 
         unsafe {
-            (view1, view2) = l.inner_swap(view1, view2).unwrap();
+            (view1, _) = l.inner_swap(view1, view2).unwrap();
         }
 
         assert_eq!(vec![12, 12, 55, 32], Vec::from(l.clone()));

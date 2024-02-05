@@ -79,6 +79,11 @@ impl<T> ValuePool<T> {
             open_indicis: (Vec::new()),
         }
     }
+
+    pub fn element_count(&self) -> usize {
+        self.store.len() - self.open_indicis.len()
+    }
+
     pub fn push(&mut self, value: T) -> ValueRef<T> {
         if self.open_indicis.len() != 0 {
             let index = self.open_indicis.pop().unwrap();
@@ -146,10 +151,6 @@ impl<T> ValuePool<T> {
         }
         self.store.swap(ref_1.index, ref_2.index);
         Some((ref_2, ref_1))
-    }
-
-    pub fn len(&self) -> usize {
-        self.store.len()
     }
 
     pub fn next_push_ref(&self) -> ValueRef<T> {
