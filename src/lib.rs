@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+#[cfg(feature="double_linked_list")]
 pub mod linked_list;
 
 #[derive(Debug)]

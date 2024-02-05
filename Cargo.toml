@@ -6,6 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["lib"]
+bench = false
+
+[features]
+double_linked_list = []
 
 [dependencies]
 
@@ -15,3 +19,4 @@ criterion = { version = "0.4", features = ["html_reports"] }
 [[bench]]
 name = "dl_list_bench"
 harness = false
+required-features = ["double_linked_list"] 

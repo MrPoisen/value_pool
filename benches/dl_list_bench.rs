@@ -2208,7 +2208,7 @@ const VALUES_2000: [(i32, usize); 2000] = [
 ];
 
 mod dl_list {
-    use value_pool::linked_list::DoubleLinkedList;
+    use value_pool::linked_list::{reuse_insert_left, DoubleLinkedList};
     pub fn push_random(values: &[(i32, usize)]) {
         let mut dl = DoubleLinkedList::new();
         for (value, _) in values.iter() {
@@ -2221,6 +2221,16 @@ mod dl_list {
         dl.push(0);
         for (value, index) in values.iter() {
             dl.insert(*index, *value);
+        }
+    }
+
+    pub fn improved_insert(values: &[(i32, usize)]) {
+        //let mut tmp_insert_view;
+        let mut dl = DoubleLinkedList::new();
+        let mut last_insert = (0, dl.push(0));
+        for (value, index) in values.iter() {
+            unsafe{last_insert = (*index, reuse_insert_left(&mut dl, (last_insert.0, &last_insert.1), (*index, *value)).expect("All indexes should be valid"));}
+            //letdl.insert(*index, *value);
         }
     }
 
@@ -2290,6 +2300,9 @@ fn dl_list_benchmark(c: &mut Criterion) {
     });
     c.bench_function("insert DL-List 2000", |b| {
         b.iter(|| dl_list::insert_random(black_box(&VALUES_2000)))
+    });
+    c.bench_function("improved insert DL-List 2000", |b| {
+        b.iter(|| dl_list::improved_insert(black_box(&VALUES_2000)))
     });
 
     c.bench_function("push front DL-List 2000", |b| {

@@ -1,3 +1,4 @@
+
 use crate::{ValuePool, ValueRef};
 
 pub struct DoubleLinkedView<T> {
@@ -22,6 +23,11 @@ pub struct DoubleLinkedListIterator<'a, T> {
     current_ref: Option<ValueRef<DoubleLinkedNode<T>>>,
 }
 
+pub struct DoubleLinkedListReverseIterator<'a, T> {
+    dl_list: &'a DoubleLinkedList<T>,
+    current_ref: Option<ValueRef<DoubleLinkedNode<T>>>,
+}
+
 pub struct DoubleLinkedListIntoIterator<T> {
     dl_list: DoubleLinkedList<T>,
     current_ref: Option<ValueRef<DoubleLinkedNode<T>>>,
@@ -32,6 +38,14 @@ impl<'a, T> Iterator for DoubleLinkedListIterator<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         let node = self.dl_list.store.get(self.current_ref?)?;
         self.current_ref = node.next;
+        Some(&node.value)
+    }
+}
+impl<'a, T> Iterator for DoubleLinkedListReverseIterator<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        let node = self.dl_list.store.get(self.current_ref?)?;
+        self.current_ref = node.prev;
         Some(&node.value)
     }
 }
@@ -205,7 +219,7 @@ impl<T> DoubleLinkedList<T> {
     }
 
     /// this function can invalidate ´DoubleLinkedView<T>´s. If this happens, your programm might panic if it doesn't account for this
-    /// needs fixing
+    /// needs fixing, only works sometimes :(
     pub unsafe fn inner_swap(
         &mut self,
         view1: DoubleLinkedView<T>,
@@ -433,6 +447,12 @@ impl<T> DoubleLinkedList<T> {
             current_ref: Some(self.start),
         }
     }
+    pub fn iter_reverse(&self) -> DoubleLinkedListReverseIterator<T> {
+        DoubleLinkedListReverseIterator {
+            dl_list: (self),
+            current_ref: Some(self.end),
+        }
+    }
 }
 
 impl<T> IntoIterator for DoubleLinkedList<T> {
@@ -474,10 +494,64 @@ impl<T> From<DoubleLinkedList<T>> for Vec<T> {
     }
 }
 
+pub unsafe fn reuse_insert_left<T>(
+    dll: &mut DoubleLinkedList<T>,
+    last_insert: (usize, &DoubleLinkedView<T>),
+    new_insert: (usize, T),
+) -> Option<DoubleLinkedView<T>> {
+    let distance_to_start = new_insert.0;
+    let distance_to_end = dll.len() - new_insert.0;
+
+    let normal_minimal_distance = distance_to_end.min(distance_to_start);
+
+    if new_insert.0 >= last_insert.0 {
+        // compare index, new index after last insert index?
+        let distance_to_last = new_insert.0 - last_insert.0;
+        if distance_to_last < normal_minimal_distance {
+            let target_view = dll.get_right_neighbour(last_insert.1, distance_to_last)?;
+            return dll.insert_left(&target_view, new_insert.1);
+        }
+    } else {
+        let distance_to_last = last_insert.0 - new_insert.0;
+        if distance_to_last < normal_minimal_distance {
+            let target_view = dll.get_left_neighbour(last_insert.1, distance_to_last)?;
+            return dll.insert_left(&target_view, new_insert.1);
+        }
+    }
+    dll.insert_left(&dll.get_view(new_insert.0)?, new_insert.1)
+}
+
+pub unsafe fn reuse_insert_right<T>(
+    dll: &mut DoubleLinkedList<T>,
+    last_insert: (usize, &DoubleLinkedView<T>),
+    new_insert: (usize, T),
+) -> Option<DoubleLinkedView<T>> {
+    let distance_to_start = new_insert.0;
+    let distance_to_end = dll.len() - new_insert.0;
+
+    let normal_minimal_distance = distance_to_end.min(distance_to_start);
+
+    if new_insert.0 >= last_insert.0 {
+        // compare index, new index after last insert index?
+        let distance_to_last = new_insert.0 - last_insert.0;
+        if distance_to_last < normal_minimal_distance {
+            let target_view = dll.get_right_neighbour(last_insert.1, distance_to_last)?;
+            return dll.insert_right(&target_view, new_insert.1);
+        }
+    } else {
+        let distance_to_last = last_insert.0 - new_insert.0;
+        if distance_to_last < normal_minimal_distance {
+            let target_view = dll.get_left_neighbour(last_insert.1, distance_to_last)?;
+            return dll.insert_right(&target_view, new_insert.1);
+        }
+    }
+    dll.insert_right(&dll.get_view(new_insert.0)?, new_insert.1)
+}
+
 #[cfg(test)]
 mod test {
 
-    use super::DoubleLinkedList;
+    use super::{DoubleLinkedList, reuse_insert_left};
 
     fn get_ll() -> DoubleLinkedList<u32> {
         let mut l = DoubleLinkedList::new();
@@ -485,7 +559,7 @@ mod test {
         l.push(12);
         l.push(55);
         l.push(12);
-        l
+        l // 32,12,55,12
     }
 
     #[test]
@@ -535,6 +609,20 @@ mod test {
         assert!(l.insert_left(&view2, 1).is_some());
 
         assert_eq!(vec![0, 32, 12, 55, 1, 12], Vec::from(l));
+    }
+
+    #[test]
+    fn test_reuse_insert_left() {
+        let mut l = get_ll(); // 32,12,55,12
+        let mut old_view = l.push(76); // 32,12,55,12,76
+        let old_insert = (l.len()-1, old_view);
+
+        // => 32,12,10,55,12,76
+        unsafe{old_view = reuse_insert_left(&mut l, (old_insert.0, &old_insert.1), (2, 10)).expect("valid view");}
+
+        // => 32,12,10,55,80, 12,76
+        unsafe{reuse_insert_left(&mut l, (2, &old_view), (4, 80));}
+        assert_eq!(vec![32,12,10,55,80, 12,76], Vec::from(l));
     }
 
     #[test]
