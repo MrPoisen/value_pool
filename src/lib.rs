@@ -18,6 +18,30 @@ impl<T> Clone for ValueRef<T> {
 }
 impl<T> Copy for ValueRef<T> {}
 
+impl<T> PartialOrd for ValueRef<T> {
+    fn ge(&self, other: &Self) -> bool {
+        self.index >= other.index
+    }
+    fn lt(&self, other: &Self) -> bool {
+        self.index < other.index
+    }
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.index == other.index {
+            return Some(std::cmp::Ordering::Equal);
+        }
+        if self.index > other.index {
+            return Some(std::cmp::Ordering::Greater);
+        }
+        // self.index < other.index
+        Some(std::cmp::Ordering::Less)
+    }
+}
+impl<T> Ord for ValueRef<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
 impl<T> ValueRef<T> {
     pub fn new(index: usize) -> ValueRef<T> {
         ValueRef {
@@ -80,6 +104,7 @@ impl<T> ValuePool<T> {
         self._remove_get_value(reference);
     }
 
+    /// ATTENTION: INVALIDATES all ValueRefs greater then reference
     pub fn remove_full(&mut self, reference: ValueRef<T>) -> Option<T> {
         self.store.remove(reference.index)
     }

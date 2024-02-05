@@ -8,3 +8,10 @@ edition = "2021"
 crate-type = ["lib"]
 
 [dependencies]
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "dl_list_bench"
+harness = false

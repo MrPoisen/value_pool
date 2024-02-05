@@ -57,7 +57,16 @@ impl<T> DoubleLinkedList<T> {
         if index >= self.length {
             return None;
         }
-
+        if index > self.length / 2 {
+            let mut node_idx = self.end;
+            let mut iteration_index = index;
+            while iteration_index < self.length - 1 {
+                // cause self.length-1 is the last index
+                node_idx = self.store.get(node_idx)?.prev?;
+                iteration_index += 1;
+            }
+            return Some(node_idx);
+        }
         let mut node_idx = self.start;
         let mut iteration_index = 0usize;
         while iteration_index < index {
@@ -65,6 +74,33 @@ impl<T> DoubleLinkedList<T> {
             iteration_index += 1;
         }
         Some(node_idx)
+    }
+
+    pub fn get_left_neighbour(
+        &self,
+        view: &DoubleLinkedView<T>,
+        n: usize,
+    ) -> Option<DoubleLinkedView<T>> {
+        let mut value_ref = view.store_index;
+        for _ in 0..n {
+            value_ref = self.store.get(value_ref)?.prev?;
+        }
+        Some(DoubleLinkedView {
+            store_index: (value_ref),
+        })
+    }
+    pub fn get_right_neighbour(
+        &self,
+        view: &DoubleLinkedView<T>,
+        n: usize,
+    ) -> Option<DoubleLinkedView<T>> {
+        let mut value_ref = view.store_index;
+        for _ in 0..n {
+            value_ref = self.store.get(value_ref)?.next?;
+        }
+        Some(DoubleLinkedView {
+            store_index: (value_ref),
+        })
     }
 
     pub fn new() -> DoubleLinkedList<T> {
@@ -87,18 +123,21 @@ impl<T> DoubleLinkedList<T> {
         }
     }
 
-    pub fn push(&mut self, value: T) {
+    pub fn push(&mut self, value: T) -> DoubleLinkedView<T> {
         self.length += 1;
 
         if self.store.len() == 0 {
-            self.store.push(DoubleLinkedNode {
+            self.start = self.store.push(DoubleLinkedNode {
                 value: (value),
                 prev: (None),
                 next: (None),
             });
-            return;
+            self.end = self.start;
+            return DoubleLinkedView {
+                store_index: (self.start),
+            };
         }
-        let cur_last_ref: ValueRef<DoubleLinkedNode<T>> = ValueRef::new(self.store.len() - 1);
+        let cur_last_ref: ValueRef<DoubleLinkedNode<T>> = self.end;
         let node = DoubleLinkedNode {
             value: (value),
             prev: Some(cur_last_ref),
@@ -109,6 +148,33 @@ impl<T> DoubleLinkedList<T> {
         self.store.get_mut(cur_last_ref).unwrap().next = Some(new_node_ref);
 
         self.end = new_node_ref;
+        DoubleLinkedView {
+            store_index: (new_node_ref),
+        }
+    }
+
+    pub fn push_front(&mut self, value: T) -> DoubleLinkedView<T> {
+        //
+        if self.length == 0 {
+            self.length += 1;
+            self.start = self.store.push(DoubleLinkedNode {
+                value: (value),
+                prev: (None),
+                next: (None),
+            });
+            self.end = self.start;
+            return DoubleLinkedView {
+                store_index: (self.start),
+            };
+        }
+        // self.start should always be valid
+        self.insert_left(
+            &DoubleLinkedView {
+                store_index: (self.start),
+            },
+            value,
+        )
+        .unwrap()
     }
 
     pub fn pop(&mut self) -> Option<T> {
@@ -140,7 +206,11 @@ impl<T> DoubleLinkedList<T> {
 
     /// this function can invalidate ´DoubleLinkedView<T>´s. If this happens, your programm might panic if it doesn't account for this
     /// needs fixing
-    pub unsafe fn inner_swap(&mut self, view1: DoubleLinkedView<T>, view2: DoubleLinkedView<T>) -> Option<(DoubleLinkedView<T>, DoubleLinkedView<T>)> {
+    pub unsafe fn inner_swap(
+        &mut self,
+        view1: DoubleLinkedView<T>,
+        view2: DoubleLinkedView<T>,
+    ) -> Option<(DoubleLinkedView<T>, DoubleLinkedView<T>)> {
         let node1_prev;
         let node1_next;
         let node2_prev;
@@ -163,30 +233,29 @@ impl<T> DoubleLinkedList<T> {
         {
             let node1 = self.store.get_mut(view1.store_index)?;
             node1.prev = match node2_prev {
-                Some(x) if x == view1.store_index => {node1_next}
-                x => x
+                Some(x) if x == view1.store_index => node1_next,
+                x => x,
             };
             node1.next = match node2_next {
-                Some(x) if x == view1.store_index => {node1_prev}
-                x => x
+                Some(x) if x == view1.store_index => node1_prev,
+                x => x,
             };
         }
         // reassign node2
         {
             let node2 = self.store.get_mut(view2.store_index)?;
             node2.prev = match node1_prev {
-                Some(x) if x == view2.store_index => {node2_next}
-                x => x
+                Some(x) if x == view2.store_index => node2_next,
+                x => x,
             };
             node2.next = match node1_next {
-                Some(x) if x == view2.store_index => {node2_prev}
-                x => x
+                Some(x) if x == view2.store_index => node2_prev,
+                x => x,
             };
         }
         self.store.swap(view1.store_index, view2.store_index);
         Some((view2, view1))
     }
-
 
     pub fn swap(&mut self, view1: &DoubleLinkedView<T>, view2: &DoubleLinkedView<T>) -> Option<()> {
         let node1_prev;
@@ -212,45 +281,50 @@ impl<T> DoubleLinkedList<T> {
         {
             let node1 = self.store.get_mut(view1.store_index)?;
             node1.prev = match node2_prev {
-                Some(x) if x == view1.store_index => {node1_next}
-                x => x
+                Some(x) if x == view1.store_index => node1_next,
+                x => x,
             };
             node1.next = match node2_next {
-                Some(x) if x == view1.store_index => {node1_prev}
-                x => x
+                Some(x) if x == view1.store_index => node1_prev,
+                x => x,
             };
         }
         // reassign neighbours of old node1
         {
             if let Some(left) = node1_prev {
-                if left != view2.store_index{self.store.get_mut(left)?.next = Some(view2.store_index);}
-                
+                if left != view2.store_index {
+                    self.store.get_mut(left)?.next = Some(view2.store_index);
+                }
             }
             if let Some(right) = node1_next {
-                if right != view2.store_index{self.store.get_mut(right)?.prev = Some(view2.store_index);}
-                
+                if right != view2.store_index {
+                    self.store.get_mut(right)?.prev = Some(view2.store_index);
+                }
             }
         }
         // reassign node2
         {
             let node2 = self.store.get_mut(view2.store_index)?;
             node2.prev = match node1_prev {
-                Some(x) if x == view2.store_index => {node2_next}
-                x => x
+                Some(x) if x == view2.store_index => node2_next,
+                x => x,
             };
             node2.next = match node1_next {
-                Some(x) if x == view2.store_index => {node2_prev}
-                x => x
+                Some(x) if x == view2.store_index => node2_prev,
+                x => x,
             };
         }
         // reassign neighbours of old node2
         {
             if let Some(left) = node2_prev {
-                if left != view1.store_index {self.store.get_mut(left)?.next = Some(view1.store_index);}
-                
+                if left != view1.store_index {
+                    self.store.get_mut(left)?.next = Some(view1.store_index);
+                }
             }
             if let Some(right) = node2_next {
-                if right != view1.store_index{self.store.get_mut(right)?.prev = Some(view1.store_index);} 
+                if right != view1.store_index {
+                    self.store.get_mut(right)?.prev = Some(view1.store_index);
+                }
             }
         }
         if view1.store_index == self.start {
@@ -277,7 +351,11 @@ impl<T> DoubleLinkedList<T> {
         self.store.get_mut(view.store_index).map(|x| &mut x.value)
     }
 
-    pub fn insert_left(&mut self, view: &DoubleLinkedView<T>, value: T) -> Option<()> {
+    pub fn insert_left(
+        &mut self,
+        view: &DoubleLinkedView<T>,
+        value: T,
+    ) -> Option<DoubleLinkedView<T>> {
         let view_node_prev = self.store.get(view.store_index)?.prev;
         let new_node = DoubleLinkedNode {
             value,
@@ -298,10 +376,16 @@ impl<T> DoubleLinkedList<T> {
         // modify self
         self.store.get_mut(view.store_index).unwrap().prev = Some(new_node_ref);
         //self.prev = Some(new_node_ref);
-        Some(())
+        Some(DoubleLinkedView {
+            store_index: (new_node_ref),
+        })
     }
 
-    pub fn insert_right(&mut self, view: &DoubleLinkedView<T>, value: T) -> Option<()> {
+    pub fn insert_right(
+        &mut self,
+        view: &DoubleLinkedView<T>,
+        value: T,
+    ) -> Option<DoubleLinkedView<T>> {
         let view_node_next = self.store.get(view.store_index)?.next;
         let new_node = DoubleLinkedNode {
             value,
@@ -322,21 +406,21 @@ impl<T> DoubleLinkedList<T> {
         // modify self
         self.store.get_mut(view.store_index).unwrap().next = Some(new_node_ref);
         //self.prev = Some(new_node_ref);
-        Some(())
+        Some(DoubleLinkedView {
+            store_index: (new_node_ref),
+        })
     }
 
-    pub fn insert(&mut self, value: T, index: usize) -> Option<()> {
-        self.length += 1;
-
+    pub fn insert(&mut self, index: usize, value: T) -> Option<DoubleLinkedView<T>> {
         let node_ref = self.index_to_valueref(index)?;
+        // insert left should increase self.length
         self.insert_left(
             &DoubleLinkedView {
                 store_index: (node_ref),
             },
             value,
-        );
+        )
         //self.store.get_mut(node_ref)?.insert_left(value, self);
-        Some(())
     }
 
     pub fn len(&self) -> usize {
@@ -488,14 +572,28 @@ mod test {
         let mut view1 = l.get_view(0).unwrap(); // 32
         let mut view2 = l.get_view(l.len() - 1).unwrap(); // last 12
 
-        unsafe{(view1, view2) = l.inner_swap(view1, view2).unwrap();}
+        unsafe {
+            (view1, view2) = l.inner_swap(view1, view2).unwrap();
+        }
 
         assert_eq!(vec![12, 12, 55, 32], Vec::from(l.clone()));
 
         let view3 = l.get_view(2).unwrap(); // view should point to 55
 
-        unsafe{assert!(l.inner_swap(view1, view3).is_some());}
+        unsafe {
+            assert!(l.inner_swap(view1, view3).is_some());
+        }
 
         assert_eq!(vec![12, 12, 32, 55], Vec::from(l));
+    }
+
+    #[test]
+    fn test_insert() {
+        let mut l = get_ll();
+        let inserts = [(6, 0), (3, 0), (4, 3), (2, 5)];
+        for (value, index) in inserts.iter() {
+            l.insert(*index, *value);
+        }
+        assert_eq!(vec![3, 6, 32, 4, 12, 2, 55, 12], Vec::from(l));
     }
 }
