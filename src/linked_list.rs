@@ -63,7 +63,6 @@ pub struct DoubleLinkedList<T> {
     store: ValuePool<DoubleLinkedNode<T>>,
     start: ValueRef<DoubleLinkedNode<T>>,
     end: ValueRef<DoubleLinkedNode<T>>,
-    len: usize,
 }
 
 impl<T> DoubleLinkedList<T> {
@@ -123,7 +122,6 @@ impl<T> DoubleLinkedList<T> {
             store: (store),
             start: (ValueRef::new(0)),
             end: (ValueRef::new(0)),
-            len: (0),
         }
     }
 
@@ -133,13 +131,10 @@ impl<T> DoubleLinkedList<T> {
             store: (store),
             start: (ValueRef::new(0)),
             end: (ValueRef::new(0)),
-            len: (0),
         }
     }
 
     pub fn push(&mut self, value: T) -> DoubleLinkedView<T> {
-        self.len += 1;
-
         if self.store.element_count() == 0 {
             self.start = self.store.push(DoubleLinkedNode {
                 value: (value),
@@ -169,8 +164,7 @@ impl<T> DoubleLinkedList<T> {
 
     pub fn push_front(&mut self, value: T) -> DoubleLinkedView<T> {
         //
-        if self.len == 0 {
-            self.len += 1;
+        if self.len() == 0 {
             self.start = self.store.push(DoubleLinkedNode {
                 value: (value),
                 prev: (None),
@@ -192,11 +186,6 @@ impl<T> DoubleLinkedList<T> {
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        if self.len == 0 {
-            return None;
-        }
-        self.len -= 1;
-
         let last_node = self.store.get_mut(self.end)?;
         let before_last_ref = last_node.prev.unwrap_or(ValueRef::new(0)); // in case this is the first value
 
@@ -378,7 +367,6 @@ impl<T> DoubleLinkedList<T> {
         };
 
         let new_node_ref = self.store.push(new_node);
-        self.len += 1;
 
         // modify old left node
         if let Some(left) = view_node_prev {
@@ -408,7 +396,6 @@ impl<T> DoubleLinkedList<T> {
         };
 
         let new_node_ref = self.store.push(new_node);
-        self.len += 1;
 
         // modify old left node
         if let Some(right) = view_node_next {
