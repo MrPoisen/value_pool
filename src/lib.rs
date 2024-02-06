@@ -1,12 +1,57 @@
-use std::marker::PhantomData;
+use std::{
+    hash::Hash,
+    marker::PhantomData,
+    ops::Deref,
+};
 
 #[cfg(feature = "double_linked_list")]
 pub mod linked_list;
+
+#[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct UntypedValueRef {
+    index: usize,
+}
+
+impl<T> From<ValueRef<T>> for UntypedValueRef {
+    fn from(value: ValueRef<T>) -> Self {
+        UntypedValueRef {
+            index: (value.index),
+        }
+    }
+}
+impl<T> From<UntypedValueRef> for ValueRef<T> {
+    fn from(value: UntypedValueRef) -> Self {
+        ValueRef {
+            index: (value.index),
+            type_info: (PhantomData),
+        }
+    }
+}
+
+impl Deref for UntypedValueRef {
+    type Target = usize;
+    fn deref(&self) -> &usize {
+        &self.index
+    }
+}
+
+impl<T> Deref for ValueRef<T> {
+    type Target = usize;
+    fn deref(&self) -> &usize {
+        &self.index
+    }
+}
 
 #[derive(Debug)]
 pub struct ValueRef<T> {
     index: usize,
     type_info: PhantomData<T>,
+}
+
+impl<T> Hash for ValueRef<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.index);
+    }
 }
 
 impl<T> Clone for ValueRef<T> {
@@ -169,5 +214,9 @@ impl<T> ValuePool<T> {
 
     pub fn reserve(&mut self, additional: usize) {
         self.store.reserve(additional);
+    }
+
+    pub fn has_item(&self, reference: ValueRef<T>) -> bool {
+        self.get(reference).is_some()
     }
 }
