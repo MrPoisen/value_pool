@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-#[cfg(feature="double_linked_list")]
+#[cfg(feature = "double_linked_list")]
 pub mod linked_list;
 
 #[derive(Debug)]
@@ -165,5 +165,9 @@ impl<T> ValuePool<T> {
         let mut tmp = None;
         std::mem::swap(&mut tmp, self.store.get_mut(reference.index)?);
         tmp
+    }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.store.reserve(additional);
     }
 }

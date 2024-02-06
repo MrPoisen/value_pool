@@ -1,6 +1,6 @@
-
 use crate::{ValuePool, ValueRef};
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct DoubleLinkedView<T> {
     store_index: ValueRef<DoubleLinkedNode<T>>,
 }
@@ -207,8 +207,22 @@ impl<T> DoubleLinkedList<T> {
             .map(|x| &mut x.value)
     }
 
-    /// this function can invalidate ´DoubleLinkedView<T>´s. If this happens, your programm might panic if it doesn't account for this
-    /// needs fixing, only works sometimes :(
+    /// `inner_swap` swaps to values as pointed to by the views. It returns new views as the given ones have been moved.
+    ///  
+    /// This function can invalidate ´DoubleLinkedView<T>´s. If this happens, your programm might panic if it doesn't account for this.
+    /// Using `inner_swap` can result in better cache-locality then `swap`.
+    ///
+    /// ```
+    /// use value_pool::linked_list::DoubleLinkedList;
+    /// let mut l = DoubleLinkedList::from(vec![12,13,14,2,1,2,4,5]);
+    /// let mut view_to_13 = l.get_view(1).unwrap(); // view points to 13
+    /// let mut view_to_1 = l.get_view(4).unwrap(); // view points to 1
+    /// let another_view_to_1 = l.get_view(4).unwrap(); // view points to 1
+    ///
+    /// // returned views are in the same order as the input
+    /// let (view_to_13,view_to_1) = unsafe{l.inner_swap(view_to_13, view_to_1).unwrap()}; // returns Some((view_to_13, view_to_1)) if the values have been swapped (includes swapping view_to_1 with another_view_to_1)
+    /// assert_eq!(another_view_to_1, view_to_13);
+    /// ```
     pub unsafe fn inner_swap(
         &mut self,
         view1: DoubleLinkedView<T>,
@@ -235,12 +249,13 @@ impl<T> DoubleLinkedList<T> {
         // reassign node1
         {
             let node1 = self.store.get_mut(view1.store_index)?;
+            // if ... <-> N_1 <-> N_2 <-> ... => N_1.prev must point to view1.store_index (current index of N_1, will be index of N_2)
             node1.prev = match node2_prev {
-                Some(x) if x == view1.store_index => node1_next,
+                Some(x) if x == view1.store_index => Some(view1.store_index),
                 x => x,
             };
             node1.next = match node2_next {
-                Some(x) if x == view1.store_index => node1_prev,
+                Some(x) if x == view1.store_index => Some(view1.store_index),
                 x => x,
             };
         }
@@ -248,11 +263,11 @@ impl<T> DoubleLinkedList<T> {
         {
             let node2 = self.store.get_mut(view2.store_index)?;
             node2.prev = match node1_prev {
-                Some(x) if x == view2.store_index => node2_next,
+                Some(x) if x == view2.store_index => Some(view2.store_index),
                 x => x,
             };
             node2.next = match node1_next {
-                Some(x) if x == view2.store_index => node2_prev,
+                Some(x) if x == view2.store_index => Some(view2.store_index),
                 x => x,
             };
         }
@@ -538,7 +553,7 @@ pub unsafe fn reuse_insert_right<T>(
 #[cfg(test)]
 mod test {
 
-    use super::{DoubleLinkedList, reuse_insert_left};
+    use super::{reuse_insert_left, DoubleLinkedList};
 
     fn get_ll() -> DoubleLinkedList<u32> {
         let mut l = DoubleLinkedList::new();
@@ -602,14 +617,19 @@ mod test {
     fn test_reuse_insert_left() {
         let mut l = get_ll(); // 32,12,55,12
         let mut old_view = l.push(76); // 32,12,55,12,76
-        let old_insert = (l.len()-1, old_view);
+        let old_insert = (l.len() - 1, old_view);
 
         // => 32,12,10,55,12,76
-        unsafe{old_view = reuse_insert_left(&mut l, (old_insert.0, &old_insert.1), (2, 10)).expect("valid view");}
+        unsafe {
+            old_view = reuse_insert_left(&mut l, (old_insert.0, &old_insert.1), (2, 10))
+                .expect("valid view");
+        }
 
         // => 32,12,10,55,80, 12,76
-        unsafe{reuse_insert_left(&mut l, (2, &old_view), (4, 80));}
-        assert_eq!(vec![32,12,10,55,80, 12,76], Vec::from(l));
+        unsafe {
+            reuse_insert_left(&mut l, (2, &old_view), (4, 80));
+        }
+        assert_eq!(vec![32, 12, 10, 55, 80, 12, 76], Vec::from(l));
     }
 
     #[test]

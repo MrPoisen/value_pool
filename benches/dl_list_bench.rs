@@ -2229,7 +2229,13 @@ mod dl_list {
         let mut dl = DoubleLinkedList::new();
         let mut last_insert = (0, dl.push(0));
         for (value, index) in values.iter() {
-            unsafe{last_insert = (*index, reuse_insert_left(&mut dl, (last_insert.0, &last_insert.1), (*index, *value)).expect("All indexes should be valid"));}
+            unsafe {
+                last_insert = (
+                    *index,
+                    reuse_insert_left(&mut dl, (last_insert.0, &last_insert.1), (*index, *value))
+                        .expect("All indexes should be valid"),
+                );
+            }
             //letdl.insert(*index, *value);
         }
     }
@@ -2240,6 +2246,10 @@ mod dl_list {
         for (value, _) in values.iter() {
             dl.push_front(*value);
         }
+    }
+
+    pub fn from_vec(values: Vec<i32>) {
+        let _ = DoubleLinkedList::from(values);
     }
 }
 
@@ -2295,6 +2305,13 @@ fn dl_list_benchmark(c: &mut Criterion) {
         b.iter(|| dl_list::push_random(black_box(&VALUES_2000)))
     });
 
+    c.bench_function("from_vec DL-List 200", |b| {
+        b.iter(|| dl_list::from_vec(black_box(&VALUES_200).iter().map(|x| x.0).collect()))
+    });
+    c.bench_function("from_vec DL-List 2000", |b| {
+        b.iter(|| dl_list::from_vec(black_box(&VALUES_2000).iter().map(|x| x.0).collect()))
+    });
+
     c.bench_function("insert DL-List 200", |b| {
         b.iter(|| dl_list::insert_random(black_box(&VALUES_200)))
     });
@@ -2341,5 +2358,5 @@ fn ll_benchmark(c: &mut Criterion) {
         b.iter(|| linked_list::push_front(black_box(&VALUES_2000)))
     });
 }
-criterion_group!(benches, dl_list_benchmark, vec_benchmark, ll_benchmark);
-criterion_main!(benches);
+criterion_group!(name=compare_datastructures; config = Criterion::default().measurement_time(std::time::Duration::from_secs(10));targets=dl_list_benchmark, vec_benchmark, ll_benchmark);
+criterion_main!(compare_datastructures);
