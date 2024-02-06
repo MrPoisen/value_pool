@@ -2229,7 +2229,13 @@ mod dl_list {
         let mut dl = DoubleLinkedList::new();
         let mut last_insert = (0, dl.push(0));
         for (value, index) in values.iter() {
-            unsafe{last_insert = (*index, reuse_insert_left(&mut dl, (last_insert.0, &last_insert.1), (*index, *value)).expect("All indexes should be valid"));}
+            unsafe {
+                last_insert = (
+                    *index,
+                    reuse_insert_left(&mut dl, (last_insert.0, &last_insert.1), (*index, *value))
+                        .expect("All indexes should be valid"),
+                );
+            }
             //letdl.insert(*index, *value);
         }
     }

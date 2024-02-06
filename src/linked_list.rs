@@ -1,4 +1,3 @@
-
 use crate::{ValuePool, ValueRef};
 
 pub struct DoubleLinkedView<T> {
@@ -538,7 +537,7 @@ pub unsafe fn reuse_insert_right<T>(
 #[cfg(test)]
 mod test {
 
-    use super::{DoubleLinkedList, reuse_insert_left};
+    use super::{reuse_insert_left, DoubleLinkedList};
 
     fn get_ll() -> DoubleLinkedList<u32> {
         let mut l = DoubleLinkedList::new();
@@ -602,14 +601,19 @@ mod test {
     fn test_reuse_insert_left() {
         let mut l = get_ll(); // 32,12,55,12
         let mut old_view = l.push(76); // 32,12,55,12,76
-        let old_insert = (l.len()-1, old_view);
+        let old_insert = (l.len() - 1, old_view);
 
         // => 32,12,10,55,12,76
-        unsafe{old_view = reuse_insert_left(&mut l, (old_insert.0, &old_insert.1), (2, 10)).expect("valid view");}
+        unsafe {
+            old_view = reuse_insert_left(&mut l, (old_insert.0, &old_insert.1), (2, 10))
+                .expect("valid view");
+        }
 
         // => 32,12,10,55,80, 12,76
-        unsafe{reuse_insert_left(&mut l, (2, &old_view), (4, 80));}
-        assert_eq!(vec![32,12,10,55,80, 12,76], Vec::from(l));
+        unsafe {
+            reuse_insert_left(&mut l, (2, &old_view), (4, 80));
+        }
+        assert_eq!(vec![32, 12, 10, 55, 80, 12, 76], Vec::from(l));
     }
 
     #[test]
