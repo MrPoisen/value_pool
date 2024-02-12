@@ -2,7 +2,8 @@
 name = "value_pool"
 version = "0.1.0"
 edition = "2021"
-
+license = "MIT"
+description = "This crate implements a ValuePool struct that makes the creation of self-referential datastructures easier and safer."
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
 all-features = true
