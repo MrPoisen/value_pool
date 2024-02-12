@@ -19,14 +19,6 @@ nightly = []
 
 [dependencies]
 
-[dev-dependencies]
-criterion = { version = "0.4", features = ["html_reports"] }
-
-[[bench]]
-name = "dl_list_bench"
-harness = false
-required-features = ["double_linked_list"] 
-
 [profile.dev]
 opt-level = 1
 debug = true
