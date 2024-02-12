@@ -13,9 +13,7 @@ bench = false
 
 [features]
 default = []
-double_linked_list = []
 unsafe = []
-nightly = []
 
 [dependencies]
 
