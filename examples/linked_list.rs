@@ -35,7 +35,7 @@ impl<T> LinkedList<T> {
 
         // Note: There is no guarantee that calling `self.store.push` on an empty store will
         // return ValueRef::new(0). We have to make sure self.start points to the right element
-        if self.store.is_empty() {
+        if self.store.element_count() == 1 { // We just pushed the first value
             self.start = reference;
         }
         self.store.get_mut(self.end)?.next = Some(reference);
