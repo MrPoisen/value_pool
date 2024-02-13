@@ -1,4 +1,3 @@
-
 //! This libraries allows easy use of self-referential structs by storing them in one place, the `ValuePool<T>`
 //! and referencing the stored values with `UntypedValueRef` or `ValueRef<T>`.
 //!
@@ -11,17 +10,17 @@
 //! // You can convert ValueRef<T> to UntypedValueRef and the other way round.
 //! // UntypedValueRef is useful if the type information of ValueRef<T> gets in your way
 //! let untyped_ref_to_first: UntypedValueRef = ref_to_first.into();
-//! 
+//!
 //! // original type information gets lost
 //! let wrongly_typed_ref_to_first: ValueRef<u8> = untyped_ref_to_first.into();  
 //! // Notice the wrong type of `wrongly_typed_ref_to_first`
-//! // Following line would result in compile time error: 
+//! // Following line would result in compile time error:
 //! //  `Trait From<ValueRef<u8>> is not implemented for ValueRef<u32>`
 //! //pool.get(wrongly_typed_ref_to_first); // Error here
 //!
 //! assert_eq!(pool.get(ref_to_first), Some(&12));
 //! assert_eq!(pool.element_count(), 1);
-//! 
+//!
 //! // You can take a value
 //! assert_eq!(pool.take(ref_to_first), Some(12));
 //! assert_eq!(pool.element_count(), 0);
@@ -330,7 +329,7 @@ impl<T> ValuePool<T> {
     }
 
     /// # Safety
-    /// Makes all ValueRefs greater equal than reference point to wrong elements.
+    /// Makes the greatest ValueRef point to the wrong (actually now `None`) element.
     /// This function will not panic or create UB.
     ///
     /// # Complexity
