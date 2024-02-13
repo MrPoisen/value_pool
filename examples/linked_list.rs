@@ -22,8 +22,8 @@ impl<T> LinkedList<T> {
     pub fn new() -> LinkedList<T> {
         // We can use a ValueRef equal to 0 and then check in all methods if `store.is_empty`
         LinkedList {
-            start: (ValueRef::new(0)),
-            end: (ValueRef::new(0)),
+            start: (ValueRef::default()),
+            end: (ValueRef::default()),
             store: (ValuePool::new()),
         }
     }
@@ -37,6 +37,7 @@ impl<T> LinkedList<T> {
         // return ValueRef::new(0). We have to make sure self.start points to the right element
         if self.store.element_count() == 1 { // We just pushed the first value
             self.start = reference;
+            self.end = reference;
         }
         self.store.get_mut(self.end)?.next = Some(reference);
         self.end = reference;
@@ -51,6 +52,7 @@ impl<T> LinkedList<T> {
         }
         // We expect that `self.store.take(self.start)` returns Some(...) if our LinkedList is in a valid state.
         // We could use `unwrap_unchecked` if we can guarantee that our LinkedList is in such a state or if we don't care about our safety.
+        // Or we remove our first check if `self.store.is_empty` and just use the `?` (`self.store.take` will return None if it's empty)
         let first_node = self.store.take(self.start)?;
         // We can't use `.unwrap` or `?` here, because `first_node` could have no `first_node.next` node.
         // We don't want a panic or early return. We want to return `first_node.value`.

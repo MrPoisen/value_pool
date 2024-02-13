@@ -44,6 +44,8 @@
 //! - *unsafe* - Library will use unsafe code to (potentially) improve speed. This could result in UB even though it shouldn't and the behavior of your code should be unchanged.
 use std::{borrow::Borrow, hash::Hash, marker::PhantomData, ops::Deref};
 
+pub mod smart_value_pool;
+
 /// Struct that stores a location of an item in ValuePool. It implements Copy.
 ///
 /// Usually, you get this struct with `from` or `into`:

@@ -1,13 +1,5 @@
-This crate implements a ValuePool struct that makes the creation of self-referential datastructures easier and safer. 
+use value_pool::{ValuePool, ValueRef, smart_value_pool::SmartValuePool};
 
-- [Docs](https://docs.rs/value_pool/0.1.0/value_pool/)
-
-# Features
-- `unsafe` - uses unsafe code for (potential) speed improvements. This should not create UB or change the behavior off your code.  
-
-
-# Example
-```rust
 #[derive(Debug, Clone)]
 struct Node<T> {
     value: T,
@@ -19,11 +11,22 @@ impl<T> Node<T> {
         Node { value, next }
     }
 }
-#[derive(Debug, Clone)]
+
+#[derive(Debug)]
 struct LinkedList<T> {
     start: ValueRef<Node<T>>,
     end: ValueRef<Node<T>>,
-    store: ValuePool<Node<T>>,
+    store: SmartValuePool<Node<T>, Self>,
+}
+
+// Not needed
+fn on_empty<T>(_pool: &mut ValuePool<Node<T>>, _ll: &mut LinkedList<T>) {
+
+}
+// ensures that on we always have a valid state when we start from an empty LinkedList
+fn on_empty_push<T>(_pool: &mut ValuePool<Node<T>>, reference: ValueRef<Node<T>>, ll: &mut LinkedList<T>) {
+    ll.start = reference;
+    ll.end = reference;
 }
 
 impl<T> LinkedList<T> {
@@ -32,21 +35,16 @@ impl<T> LinkedList<T> {
         LinkedList {
             start: (ValueRef::default()),
             end: (ValueRef::default()),
-            store: (ValuePool::new()),
+            store: (SmartValuePool::make_smart(ValuePool::new(), on_empty , on_empty_push)),
         }
     }
 
     pub fn push_back(&mut self, value: T) -> Option<()> {
         // will return Option<()> here for ease of use
         // think of reference as a weird "pointer"
+        // If `self.store.is_empty`, then `self.start` and `self.end` will be send
         let reference = self.store.push(Node::new(value, None));
 
-        // Note: There is no guarantee that calling `self.store.push` on an empty store will
-        // return ValueRef::new(0). We have to make sure self.start points to the right element
-        if self.store.element_count() == 1 { // We just pushed the first value
-            self.start = reference;
-            self.end = reference;
-        }
         self.store.get_mut(self.end)?.next = Some(reference);
         self.end = reference;
 
@@ -70,4 +68,15 @@ impl<T> LinkedList<T> {
         Some(first_node.value)
     }
 }
-```
+
+fn main() {
+    let example_data = [1, 2, 3, 12, 2, 1, 4, 22, 8, 19];
+    let mut ll: LinkedList<i32> = LinkedList::new();
+    println!("Creating a populated Linked List");
+    for i in example_data.iter() {
+        assert!(ll.push_back(*i).is_some());
+    }
+
+    println!("Our Linked List as debug print: {:#?}", &ll);
+    println!("first element: {}", ll.pop_front().unwrap());
+}
