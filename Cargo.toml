@@ -1,9 +1,12 @@
 [package]
 name = "value_pool"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
-description = "This crate implements a ValuePool struct that makes the creation of self-referential datastructures easier and safer."
+description = "This crate implements a ValuePool struct that makes the creation of self-referential data structures easier and safer."
+repository = "https://github.com/MrPoisen/value_pool"
+readme = "Readme.md"
+
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
 all-features = true
@@ -17,14 +20,11 @@ default = []
 unsafe = []
 
 [dependencies]
+nonmax = "0.5.5"
 
 [profile.dev]
 opt-level = 1
 debug = true
-
-[profile.bench]
-strip = "none"
-debug=true
 
 [profile.release]
 strip = "symbols"

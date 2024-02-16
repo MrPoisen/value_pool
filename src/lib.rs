@@ -1,6 +1,5 @@
-
-//! This libraries allows easy use of self-referential structs by storing them in one place, the `ValuePool<T>`
-//! and referencing the stored values with `UntypedValueRef` or `ValueRef<T>`.
+//! This libraries allows easy use of self-referential structs by storing them in one place, the [`ValuePool<T>`]
+//! and referencing the stored values with [`UntypedValueRef`] or [`ValueRef<T>`].
 //!
 //! # Showcase
 //! ```
@@ -11,17 +10,17 @@
 //! // You can convert ValueRef<T> to UntypedValueRef and the other way round.
 //! // UntypedValueRef is useful if the type information of ValueRef<T> gets in your way
 //! let untyped_ref_to_first: UntypedValueRef = ref_to_first.into();
-//! 
+//!
 //! // original type information gets lost
 //! let wrongly_typed_ref_to_first: ValueRef<u8> = untyped_ref_to_first.into();  
 //! // Notice the wrong type of `wrongly_typed_ref_to_first`
-//! // Following line would result in compile time error: 
+//! // Following line would result in compile time error:
 //! //  `Trait From<ValueRef<u8>> is not implemented for ValueRef<u32>`
 //! //pool.get(wrongly_typed_ref_to_first); // Error here
 //!
 //! assert_eq!(pool.get(ref_to_first), Some(&12));
 //! assert_eq!(pool.element_count(), 1);
-//! 
+//!
 //! // You can take a value
 //! assert_eq!(pool.take(ref_to_first), Some(12));
 //! assert_eq!(pool.element_count(), 0);
@@ -42,10 +41,14 @@
 //! assert_eq!(pool.find(&13).unwrap(), ValueRef::new(0));
 //! ```
 //! # Features
-//! - *unsafe* - Library will use unsafe code to (potentially) improve speed. This could result in UB even though it shouldn't and the behavior of your code should be unchanged.
-use std::{borrow::Borrow, hash::Hash, marker::PhantomData, ops::Deref};
+//! - *unsafe* - Library will use unsafe code to (potentially) improve speed. This could result in UB if implemented faulty even though it shouldn't and the behavior of your code should be unchanged.
+#![warn(missing_docs)]
 
-/// Struct that stores a location of an item in ValuePool. It implements Copy.
+use nonmax::NonMaxUsize;
+use std::{borrow::Borrow, hash::Hash, marker::PhantomData};
+pub mod smart_value_pool;
+
+/// Struct that stores a location of an item in [`ValuePool<T>`]. It implements [`Copy`].
 ///
 /// Usually, you get this struct with `from` or `into`:
 /// ```
@@ -54,32 +57,60 @@ use std::{borrow::Borrow, hash::Hash, marker::PhantomData, ops::Deref};
 /// let value_ref: ValueRef<usize> = ValueRef::new(2);
 ///
 /// let untyped_value_ref: UntypedValueRef = value_ref.into();
-/// assert_eq!(*untyped_value_ref, *value_ref); // * returns the stored location (usize)
+/// assert_eq!(untyped_value_ref, value_ref);
 ///
 /// //or
 /// let untyped_value_ref = UntypedValueRef::new(2); // usually not needed or recommended
-/// assert_eq!(*untyped_value_ref, 2usize);
+/// assert_eq!(untyped_value_ref, value_ref);
 /// ```
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UntypedValueRef {
-    index: usize,
+    index: NonMaxUsize,
 }
 
 impl UntypedValueRef {
     /// Creates a new [`UntypedValueRef`] for a given index. This is usually not needed.
+    ///
+    /// # Panic
+    /// This will panic if [`index == usize::MAX`](usize::MAX).
     #[inline]
     pub fn new(index: usize) -> UntypedValueRef {
-        UntypedValueRef { index }
+        UntypedValueRef {
+            index: NonMaxUsize::new(index).expect("Given index to not be the maximum value"),
+        }
+    }
+
+    /// Creates a new [`ValueRef`] for a given index. This is usually not needed.
+    #[inline]
+    pub fn new_non_max(index: NonMaxUsize) -> UntypedValueRef {
+        UntypedValueRef { index: (index) }
     }
 }
 
 impl Default for UntypedValueRef {
     #[inline]
     fn default() -> Self {
-        UntypedValueRef { index: 0 }
+        UntypedValueRef {
+            index: NonMaxUsize::ZERO,
+        }
     }
 }
+
+impl<T> PartialEq<ValueRef<T>> for UntypedValueRef {
+    #[inline]
+    fn eq(&self, other: &ValueRef<T>) -> bool {
+        self.index == other.index
+    }
+}
+
+impl<T> PartialOrd<ValueRef<T>> for UntypedValueRef {
+    #[inline]
+    fn partial_cmp(&self, other: &ValueRef<T>) -> Option<std::cmp::Ordering> {
+        Some(self.index.cmp(&other.index))
+    }
+}
+
 impl<T> From<ValueRef<T>> for UntypedValueRef {
     #[inline]
     fn from(value: ValueRef<T>) -> Self {
@@ -98,24 +129,9 @@ impl<T> From<UntypedValueRef> for ValueRef<T> {
     }
 }
 
-impl Deref for UntypedValueRef {
-    type Target = usize;
-    #[inline]
-    fn deref(&self) -> &usize {
-        &self.index
-    }
-}
-
-impl<T> Deref for ValueRef<T> {
-    type Target = usize;
-    #[inline]
-    fn deref(&self) -> &usize {
-        &self.index
-    }
-}
-/// Struct that stores a location of an item in ValuePool as well as the Type.
+/// Struct that stores a location of an item in [`ValuePool<T>`] as well as the type. It implements [`Copy`].
 ///
-/// Usually, you get this struct rough methods from ValuePool. It implements Copy.
+/// Usually, you get this struct trough methods from [`ValuePool<T>`]. 
 /// ```
 /// use value_pool::{UntypedValueRef, ValueRef, ValuePool};
 ///
@@ -125,7 +141,6 @@ impl<T> Deref for ValueRef<T> {
 ///  
 /// //or
 /// let value_ref: ValueRef<usize> = ValueRef::new(4);
-/// assert_eq!(*value_ref, 4usize);
 /// assert_eq!(pool.get(value_ref), None);
 /// ```
 ///
@@ -142,15 +157,28 @@ impl<T> Deref for ValueRef<T> {
 /// ```
 #[derive(Debug)]
 pub struct ValueRef<T> {
-    index: usize,
+    index: NonMaxUsize,
     type_info: PhantomData<T>,
+}
+
+impl<T> PartialEq<UntypedValueRef> for ValueRef<T> {
+    #[inline]
+    fn eq(&self, other: &UntypedValueRef) -> bool {
+        self.index == other.index
+    }
+}
+impl<T> PartialOrd<UntypedValueRef> for ValueRef<T> {
+    #[inline]
+    fn partial_cmp(&self, other: &UntypedValueRef) -> Option<std::cmp::Ordering> {
+        Some(self.index.cmp(&other.index))
+    }
 }
 
 impl<T> Default for ValueRef<T> {
     #[inline]
     fn default() -> Self {
         ValueRef {
-            index: (0),
+            index: (NonMaxUsize::ZERO),
             type_info: (PhantomData),
         }
     }
@@ -159,7 +187,7 @@ impl<T> Default for ValueRef<T> {
 impl<T> Hash for ValueRef<T> {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write_usize(self.index);
+        state.write_usize(self.index.get());
     }
 }
 
@@ -205,8 +233,20 @@ impl<T> Ord for ValueRef<T> {
 
 impl<T> ValueRef<T> {
     /// Creates a new [`ValueRef`] for a given index. This is usually not needed.
+    ///
+    /// # Panic
+    /// Will panic if [`index == usize::MAX`](usize::MAX).
     #[inline]
     pub fn new(index: usize) -> ValueRef<T> {
+        ValueRef {
+            index: (NonMaxUsize::new(index).expect("Given index to not be the maximum value")),
+            type_info: (PhantomData),
+        }
+    }
+
+    /// Creates a new [`ValueRef<T>`] for a given index. This is usually not needed.
+    #[inline]
+    pub fn new_nonmax(index: NonMaxUsize) -> ValueRef<T> {
         ValueRef {
             index: (index),
             type_info: (PhantomData),
@@ -222,10 +262,26 @@ impl<T> PartialEq for ValueRef<T> {
 }
 impl<T> Eq for ValueRef<T> {}
 
+// TODO: use SmallVec (as a feature) when it hits v2 (https://github.com/servo/rust-smallvec/tree/v2)
+
+/// A [`ValuePool<T>`] allows referencing data stored within without a lifetime bound.  
+/// It works by returning an [`Option<T>`]. It's your responsibility to handel [`None`]s.
+/// ```
+/// use value_pool::ValuePool;
+/// let mut pool: ValuePool<i32>= ValuePool::with_capacity(10);
+/// let ten_ref = pool.push(10);
+/// pool.push(20);
+/// let minus_ten_ref = pool.push(-10);
+/// 
+/// assert_eq!(pool.get(ten_ref), Some(&10i32));
+/// let minus_ten = pool.take(minus_ten_ref);
+/// assert_eq!(minus_ten, Some(-10i32));
+/// assert_eq!(pool.get(minus_ten_ref), None);
+/// ```
 #[derive(Debug, Clone)]
 pub struct ValuePool<T> {
     store: Vec<Option<T>>,
-    open_indices: Vec<usize>,
+    open_indices: Vec<NonMaxUsize>,
 }
 
 impl<T> Default for ValuePool<T> {
@@ -243,7 +299,7 @@ impl<T> ValuePool<T> {
             open_indices: (Vec::with_capacity(capacity / 4)),
         }
     }
-    /// Creates a new, empty [`ValuePool`]
+    /// Creates a new, empty [`ValuePool`].
     #[inline]
     pub fn new() -> ValuePool<T> {
         ValuePool {
@@ -258,7 +314,7 @@ impl<T> ValuePool<T> {
         self.store.len() - self.open_indices.len()
     }
 
-    /// Returns true if any `T`s are stored. Equivalent to: [`ValuePool::element_count()`]` == 0`.
+    /// Returns true if any `T`s are stored. Equivalent to: [`ValuePool::element_count() == 0`](ValuePool::element_count()).
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.element_count() == 0
@@ -277,98 +333,118 @@ impl<T> ValuePool<T> {
     }
 
     /// Checks if the given reference is in bounce. If true, this means [`ValuePool::get_unchecked`] and the likes can be called without UB.
-    /// These methods can *still* return None.
+    /// These methods can *still* return [`None`].
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub fn is_ref_in_bounce(&self, reference: impl Into<ValueRef<T>>) -> bool {
         let reference: ValueRef<T> = reference.into();
-        reference.index < self.store.len()
+        reference.index.get() < self.store.len()
     }
 
     /// Pushes a new value into the [`ValuePool`] and returns a [`ValueRef<T>`] (that stores its position).
     /// You can access this value with `get`.
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub fn push(&mut self, value: T) -> ValueRef<T> {
         if !self.open_indices.is_empty() {
             let index = self.open_indices.pop().unwrap();
-            self.store[index] = Some(value);
-            ValueRef::new(index)
+            self.store[index.get()] = Some(value);
+            ValueRef::new_nonmax(index)
         } else {
             self.store.push(Some(value));
             ValueRef::new(self.store.len() - 1)
         }
     }
 
-    /// Removes an item from [`ValuePool`].
+    /// Removes an item from [`ValuePool`].  
+    /// If this item is stored last its position won't be marked empty but instead thee underlying  
+    /// data structure will be reduced in length.  
+    /// Note: This will **not** reduce the used memory of this [`ValuePool<T>`].
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub fn remove(&mut self, reference: impl Into<ValueRef<T>>) {
         let reference: ValueRef<T> = reference.into();
         if !self.has_item(reference) {
             return;
         }
+        // => there is an item at reference
+
         // if `reference` is the last index and has a value; this can prevent reallocation of `self.open_indices`
-        if reference.index + 1 == self.store.len() {
+        if reference.index.get() + 1 == self.store.len() {
             self.store.pop();
             return;
         }
 
-        if let Some(value) = self.store.get_mut(reference.index) {
-            // if value is none, `reference.index` should already be in `self.open_indices`
-            if value.is_some() {
-                self.open_indices.push(reference.index);
-                *value = None;
-            }
+        #[cfg(feature="unsafe")]
+        unsafe{
+            // value must exist cause `self.has_item` is true
+            let value = self.store.get_unchecked_mut(reference.index.get());
+            self.open_indices.push(reference.index);
+            *value = None
         }
+        #[cfg(not(feature="unsafe"))]
+        {   
+            // value must exist cause `self.has_item` is true
+            let value = self.store.get_mut(reference.index.get()).unwrap();
+            self.open_indices.push(reference.index);
+            *value = None;
+        }
+ 
     }
 
     /// # Safety
-    /// Makes all ValueRefs greater equal than reference point to wrong elements.
+    /// Makes the greatest [`ValueRef<T>`] point to the wrong (actually now [`None`]) element.
     /// This function will not panic or create UB.
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub unsafe fn remove_full(&mut self, reference: impl Into<ValueRef<T>>) -> Option<T> {
         let reference: ValueRef<T> = reference.into();
-        self.store.swap_remove(reference.index)
+        self.store.swap_remove(reference.index.get())
     }
 
     /// Gets a borrow of the item pointed to by `reference` if it exists.
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub fn get(&self, reference: impl Into<ValueRef<T>>) -> Option<&T> {
         let reference: ValueRef<T> = reference.into();
-        self.store.get(reference.index).and_then(|x| x.as_ref())
+        self.store
+            .get(reference.index.get())
+            .and_then(|x| x.as_ref())
     }
 
     /// Gets a borrow of the item pointed to by `reference` if an item is stored there.
     ///
     /// # Safety
-    /// Calling this method with an reference that is out of bounds, is UB. You can check beforehand with [`ValuePool::is_ref_in_bounce`].
+    /// Calling this method with an `reference` that is out of bounds, is UB. You can check beforehand with [`ValuePool::is_ref_in_bounce`].
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub unsafe fn get_unchecked(&self, reference: impl Into<ValueRef<T>>) -> Option<&T> {
         let reference: ValueRef<T> = reference.into();
-        self.store.get_unchecked(reference.index).as_ref()
+        self.store.get_unchecked(reference.index.get()).as_ref()
     }
 
-    /// gets a mut borrow of the item pointed to by `reference` if it exists
+    /// Gets a mut borrow of the item pointed to by `reference` if it exists.
+    /// 
+    /// # Complexity
+    /// `O(1)`
     #[inline]
     pub fn get_mut(&mut self, reference: impl Into<ValueRef<T>>) -> Option<&mut T> {
         let reference: ValueRef<T> = reference.into();
-        self.store.get_mut(reference.index).and_then(|x| x.as_mut())
+        self.store
+            .get_mut(reference.index.get())
+            .and_then(|x| x.as_mut())
     }
 
     /// Gets a mut borrow of the item pointed to by `reference` if an item is stored there.
@@ -377,23 +453,23 @@ impl<T> ValuePool<T> {
     /// Calling this method with an reference that is out of bounds, is UB. You can check beforehand with [`ValuePool::is_ref_in_bounce`].
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub unsafe fn get_unchecked_mut(
         &mut self,
         reference: impl Into<ValueRef<T>>,
     ) -> Option<&mut T> {
         let reference: ValueRef<T> = reference.into();
-        self.store.get_unchecked_mut(reference.index).as_mut()
+        self.store.get_unchecked_mut(reference.index.get()).as_mut()
     }
 
-    /// Swaps ref_1 with ref_2, all other refs equal two the both will point to the wrong element.
+    /// Swaps `ref_1` with `ref_2`, all other refs equal two the both will point to the wrong element.
     ///
     /// # Note
     /// All other references equal to `ref_1` or `ref_2` now point to the wrong element.
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub fn swap(
         &mut self,
@@ -401,17 +477,17 @@ impl<T> ValuePool<T> {
         ref_2: impl Into<ValueRef<T>>,
     ) -> Option<(ValueRef<T>, ValueRef<T>)> {
         let (ref_1, ref_2) = (ref_1.into(), ref_2.into());
-        if ref_1.index >= self.store.len() || ref_2.index >= self.store.len() {
+        if ref_1.index.get() >= self.store.len() || ref_2.index.get() >= self.store.len() {
             return None;
         }
-        self.store.swap(ref_1.index, ref_2.index);
+        self.store.swap(ref_1.index.get(), ref_2.index.get());
         Some((ref_2, ref_1))
     }
 
     /// Returns the value_ref value the next call to [`ValuePool::push`] would return.
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub fn next_push_ref(&self) -> ValueRef<T> {
         if self.open_indices.is_empty() {
@@ -419,15 +495,15 @@ impl<T> ValuePool<T> {
         }
         #[cfg(feature = "unsafe")]
         unsafe {
-            return ValueRef::new(*self.open_indices.last().unwrap_unchecked());
+            return ValueRef::new_nonmax(*self.open_indices.last().unwrap_unchecked());
         }
         #[cfg(not(feature = "unsafe"))]
         {
-            return ValueRef::new(*self.open_indices.last().unwrap());
+            return ValueRef::new_nonmax(*self.open_indices.last().unwrap());
         }
     }
 
-    /// Takes value at `reference` and returns it. If the returned value is `Some`, then calling it again with the same `reference` will return None.
+    /// Takes value at `reference` and returns it. Calling it again with the same `reference` _(without modifying this [`ValuePool<T>`])_ will always return [`None`].  
     /// ```
     /// use value_pool::ValuePool;
     /// let mut pool: ValuePool<usize> = ValuePool::new();
@@ -441,12 +517,12 @@ impl<T> ValuePool<T> {
     /// ```
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub fn take(&mut self, reference: impl Into<ValueRef<T>>) -> Option<T> {
         let mut tmp = None;
         let reference: ValueRef<T> = reference.into();
-        std::mem::swap(&mut tmp, self.store.get_mut(reference.index)?);
+        std::mem::swap(&mut tmp, self.store.get_mut(reference.index.get())?);
         if tmp.is_some() {
             // if tmp is none, reference.index should already be in self.open_indices
             self.open_indices.push(reference.index);
@@ -454,7 +530,7 @@ impl<T> ValuePool<T> {
         tmp
     }
 
-    /// Takes value at `reference` and returns it. If the returned value is `Some`, then calling it again with the same `reference` will return None.
+    /// Takes value at `reference` and returns it. Calling it again with the same `reference` _(without modifying this [`ValuePool<T>`])_ will always return [`None`].  
     ///
     /// # Safety
     /// Calling this method with an reference that is out of bounds, is UB. You can check beforehand with [`ValuePool::is_ref_in_bounce`].
@@ -471,12 +547,15 @@ impl<T> ValuePool<T> {
     /// ```
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub unsafe fn take_unchecked(&mut self, reference: impl Into<ValueRef<T>>) -> Option<T> {
         let mut tmp = None;
         let reference: ValueRef<T> = reference.into();
-        std::mem::swap(&mut tmp, self.store.get_unchecked_mut(reference.index));
+        std::mem::swap(
+            &mut tmp,
+            self.store.get_unchecked_mut(reference.index.get()),
+        );
         if tmp.is_some() {
             // if tmp is none, reference.index should already be in self.open_indices
             self.open_indices.push(reference.index);
@@ -494,7 +573,7 @@ impl<T> ValuePool<T> {
     /// Equivalent to [`ValuePool::get`]`.is_some()`.
     ///
     /// # Complexity
-    /// O(1)
+    /// `O(1)`
     #[inline]
     pub fn has_item(&self, reference: impl Into<ValueRef<T>>) -> bool {
         self.get(reference).is_some()
@@ -517,25 +596,21 @@ impl<T> ValuePool<T> {
     /// ```
     ///
     /// # Complexity
-    /// Be n = [ValuePool::element_count()] + [ValuePool::waiting_positions()].
-    /// Worst-Case: O(n)  
-    /// Average-Case: O(n/2)   
-    /// Best-Case: O(1)   
+    /// Be n = [`ValuePool::element_count()`] + [`ValuePool::waiting_positions()`].   
+    /// Worst-Case: `O(n)`  
+    /// Average-Case: `O(n/2)`   
+    /// Best-Case: `O(1)`   
     #[inline]
     pub fn find<Q: Eq>(&self, value: &Q) -> Option<ValueRef<T>>
     where
         T: Borrow<Q>,
     {
-        Some(ValueRef {
-            index: (self
-                .store
-                .iter()
-                .position(|v| v.as_ref().is_some_and(|x| *x.borrow() == *value))?),
-            type_info: (PhantomData),
-        })
+        Some(ValueRef::new(self.store.iter().position(|v| {
+            v.as_ref().is_some_and(|x| *x.borrow() == *value)
+        })?))
     }
 
-    /// Clears this [`ValuePool`].
+    /// Clears this [`ValuePool<T>`].
     /// ```
     /// use value_pool::ValuePool;
     ///
@@ -559,7 +634,7 @@ impl<T> ValuePool<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ValuePool, ValueRef};
+    use crate::{UntypedValueRef, ValuePool, ValueRef};
 
     fn get_store() -> ValuePool<u32> {
         let mut store: ValuePool<u32> = ValuePool::with_capacity(10);
@@ -597,5 +672,15 @@ mod tests {
         // 12,3,9,5,1,5,8,3,0,74,52 => 12,3,9,1,5,8,3,0,74,52
         unsafe { store.remove_full(ValueRef::new(3)) };
         assert_eq!(store.next_push_ref(), ValueRef::new(10));
+    }
+
+    #[test]
+    fn test_correct_sizes() {
+        struct Dummy;
+        assert_eq!(
+            std::mem::size_of::<ValueRef<Dummy>>(),
+            std::mem::size_of::<Option<ValueRef<Dummy>>>()
+        );
+        assert_eq!(std::mem::size_of::<UntypedValueRef>(), std::mem::size_of::<Option<UntypedValueRef>>());
     }
 }
