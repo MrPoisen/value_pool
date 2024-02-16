@@ -1,4 +1,4 @@
-use value_pool::{ValuePool, ValueRef, smart_value_pool::SmartValuePool};
+use value_pool::{smart_value_pool::SmartValuePool, ValuePool, ValueRef};
 
 #[derive(Debug, Clone)]
 struct Node<T> {
@@ -20,11 +20,13 @@ struct LinkedList<T> {
 }
 
 // Not needed
-fn on_empty<T>(_pool: &mut ValuePool<Node<T>>, _ll: &mut LinkedList<T>) {
-
-}
+fn on_empty<T>(_pool: &mut ValuePool<Node<T>>, _ll: &mut LinkedList<T>) {}
 // ensures that on we always have a valid state when we start from an empty LinkedList
-fn on_empty_push<T>(_pool: &mut ValuePool<Node<T>>, reference: ValueRef<Node<T>>, ll: &mut LinkedList<T>) {
+fn on_empty_push<T>(
+    _pool: &mut ValuePool<Node<T>>,
+    reference: ValueRef<Node<T>>,
+    ll: &mut LinkedList<T>,
+) {
     ll.start = reference;
     ll.end = reference;
 }
@@ -35,7 +37,7 @@ impl<T> LinkedList<T> {
         LinkedList {
             start: (ValueRef::default()),
             end: (ValueRef::default()),
-            store: (SmartValuePool::make_smart(ValuePool::new(), on_empty , on_empty_push)),
+            store: (SmartValuePool::make_smart(ValuePool::new(), on_empty, on_empty_push)),
         }
     }
 
