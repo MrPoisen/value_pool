@@ -12,6 +12,8 @@ Take a look at the `examples/` folder.
 
 # Example
 ```rust
+use value_pool::{ValuePool, ValueRef};
+
 #[derive(Debug, Clone)]
 struct Node<T> {
     value: T,
