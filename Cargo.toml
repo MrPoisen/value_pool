@@ -3,7 +3,7 @@ name = "value_pool"
 version = "0.2.0"
 edition = "2021"
 license = "MIT"
-description = "This crate implements a ValuePool struct that makes the creation of self-referential datastructures easier and safer."
+description = "This crate implements a ValuePool struct that makes the creation of self-referential data structures easier and safer."
 repository = "https://github.com/MrPoisen/value_pool"
 readme = "Readme.md"
 
