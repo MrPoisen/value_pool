@@ -5,7 +5,7 @@ Take a look at the `examples/` folder.
 - [Docs](https://docs.rs/value_pool/latest/value_pool/)
 
 # Features
-- `unsafe` - uses unsafe code for (potential) speed improvements. This should not create UB or change the behavior off your code.  
+- `unsafe` - uses unsafe code for (potential) speed improvements. This should not create UB or change the behavior of your code.  
 
 # Todo
 - [ ] enable use of [SmallVec](https://github.com/servo/rust-smallvec) behind a feature once v2 is finished.  

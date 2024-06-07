@@ -361,7 +361,7 @@ impl<T> ValuePool<T> {
     }
 
     /// Removes an item from [`ValuePool`].  
-    /// If this item is stored last its position won't be marked empty but instead thee underlying  
+    /// If this item is stored last its position won't be marked empty but instead the underlying  
     /// data structure will be reduced in length.  
     /// Note: This will **not** reduce the used memory of this [`ValuePool<T>`].
     ///
