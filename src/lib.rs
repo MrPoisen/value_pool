@@ -47,6 +47,8 @@
 use nonmax::NonMaxUsize;
 use std::{borrow::Borrow, hash::Hash, marker::PhantomData};
 pub mod smart_value_pool;
+pub mod comptime_alive_index;
+pub mod runtime_alive_index;
 
 /// Struct that stores a location of an item in [`ValuePool<T>`]. It implements [`Copy`].
 ///
