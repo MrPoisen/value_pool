@@ -563,6 +563,47 @@ impl<T> ValuePool<T> {
         tmp
     }
 
+    /// Replaces the struct at `reference` with `value`. 
+    /// If reference is out of bounds: returns `Err(value)`.
+    /// Else: returns `Ok(struct at reference)`
+    /// 
+    /// # Example
+    /// ```
+    /// use value_pool::ValuePool;
+    /// let mut pool: ValuePool<usize> = ValuePool::new();
+    /// pool.push(2);
+    /// let ref_to_3 = pool.push(3);
+    /// let ref_to_4 = pool.push(4);
+    /// 
+    /// let res = pool.replace(ref_to_3, Some(5));
+    /// assert_eq!(res, Ok(Some(3)));
+    /// assert_eq!(pool.get(ref_to_3), Some(&5));
+    /// 
+    /// let res = pool.replace(ref_to_3, None);
+    /// assert_eq!(res, Ok(Some(5)));
+    /// assert_eq!(pool.get(ref_to_3), None);
+    /// 
+    /// pool.remove(ref_to_4);
+    /// let res = pool.replace(ref_to_4, Some(44));
+    /// assert_eq!(res, Err(Some(44)));
+    /// 
+    /// let res = pool.replace(ref_to_4, None);
+    /// assert_eq!(res, Err(None));
+    /// ```
+    #[inline]
+    pub fn replace(&mut self, reference: impl Into<ValueRef<T>>, mut value: Option<T>) -> Result<Option<T>, Option<T>> {
+        let reference: ValueRef<T> = reference.into();
+        let accessed_value = self.store.get_mut(reference.index.get());
+        match accessed_value {
+            None => return Err(value),
+            Some(x) => {
+                std::mem::swap(&mut value, x);
+                Ok(value)
+            }
+        }
+
+    }
+
     /// Ensures at least `additional` elements can be stored without additional reallocations.
     #[inline]
     pub fn reserve(&mut self, additional: usize) {
