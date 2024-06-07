@@ -9,17 +9,17 @@ use crate::{ValuePool, ValueRef};
 /// [`SmartValuePool<T, O>`] can automatically call a function if a method call changes it state from empty to one element or vice versa.
 /// ```
 /// use value_pool::{ValuePool, smart_value_pool::SmartValuePool, ValueRef};
-/// 
+///
 /// fn on_empty<T>(pool: &mut ValuePool<T>, text: &mut String) {
 ///     println!("Waiting positions in now empty pool: {}", pool.waiting_positions());
 ///     text.push_str("|Called on_empty|");
 /// }
-/// 
+///
 /// fn on_empty_push<T>(pool: &mut ValuePool<T>, reference: ValueRef<T>, text: &mut String){
 ///     println!("Waiting positions in now 1 element pool: {}", pool.waiting_positions());
 ///     text.push_str("|Called on_empty_push|");
 /// }
-/// 
+///
 /// let mut pool: SmartValuePool<usize, String> = SmartValuePool::make_smart(ValuePool::new(), on_empty, on_empty_push);
 /// let mut text = "Start: ".to_string();
 /// let three_ref = pool.smart_push(3usize, &mut text); // prints "Waiting positions in now 1 element pool: 0"
@@ -28,7 +28,7 @@ use crate::{ValuePool, ValueRef};
 /// let four_ref = pool.smart_push(4usize, &mut text);
 /// let five_ref = pool.push(5); // No check will happen
 /// let six_ref = pool.push(6); // No check will happen
-/// 
+///
 /// pool.remove(three_ref); // No check
 /// pool.smart_remove(four_ref, &mut text);
 /// pool.smart_remove(five_ref, &mut text);
@@ -84,7 +84,7 @@ impl<T, O> SmartValuePool<T, O> {
         }
         tmp
     }
-    
+
     /// Same as [`ValuePool<T>::take`] but it will call the previously given `on_empty` if needed
     #[inline]
     pub fn smart_take(&mut self, reference: ValueRef<T>, object: &mut O) -> Option<T> {
@@ -96,7 +96,7 @@ impl<T, O> SmartValuePool<T, O> {
     }
 
     /// Same as [`ValuePool<T>::take_unchecked`] but it will call the previously given `on_empty` if needed
-    /// 
+    ///
     /// # Safety
     /// Calling this method with an reference that is out of bounds, is UB. You can check beforehand with [`ValuePool::is_ref_in_bounce`].
     #[inline]
@@ -114,16 +114,10 @@ impl<T, O> SmartValuePool<T, O> {
 
     /// Same as [`ValuePool<T>::remove`] but it will call the previously given `on_empty` if needed
     #[inline]
-    pub fn smart_remove(
-        &mut self,
-        reference: impl Into<ValueRef<T>>,
-        object: &mut O,
-    )  {
+    pub fn smart_remove(&mut self, reference: impl Into<ValueRef<T>>, object: &mut O) {
         self.remove(reference);
         if self.is_empty() {
             (self.on_empty)(&mut self.pool, object);
         }
-        
     }
-
 }
