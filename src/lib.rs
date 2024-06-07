@@ -131,7 +131,7 @@ impl<T> From<UntypedValueRef> for ValueRef<T> {
 
 /// Struct that stores a location of an item in [`ValuePool<T>`] as well as the type. It implements [`Copy`].
 ///
-/// Usually, you get this struct trough methods from [`ValuePool<T>`]. 
+/// Usually, you get this struct trough methods from [`ValuePool<T>`].
 /// ```
 /// use value_pool::{UntypedValueRef, ValueRef, ValuePool};
 ///
@@ -272,7 +272,7 @@ impl<T> Eq for ValueRef<T> {}
 /// let ten_ref = pool.push(10);
 /// pool.push(20);
 /// let minus_ten_ref = pool.push(-10);
-/// 
+///
 /// assert_eq!(pool.get(ten_ref), Some(&10i32));
 /// let minus_ten = pool.take(minus_ten_ref);
 /// assert_eq!(minus_ten, Some(-10i32));
@@ -381,21 +381,20 @@ impl<T> ValuePool<T> {
             return;
         }
 
-        #[cfg(feature="unsafe")]
-        unsafe{
+        #[cfg(feature = "unsafe")]
+        unsafe {
             // value must exist cause `self.has_item` is true
             let value = self.store.get_unchecked_mut(reference.index.get());
             self.open_indices.push(reference.index);
             *value = None
         }
-        #[cfg(not(feature="unsafe"))]
-        {   
+        #[cfg(not(feature = "unsafe"))]
+        {
             // value must exist cause `self.has_item` is true
             let value = self.store.get_mut(reference.index.get()).unwrap();
             self.open_indices.push(reference.index);
             *value = None;
         }
- 
     }
 
     /// # Safety
@@ -436,7 +435,7 @@ impl<T> ValuePool<T> {
     }
 
     /// Gets a mut borrow of the item pointed to by `reference` if it exists.
-    /// 
+    ///
     /// # Complexity
     /// `O(1)`
     #[inline]
@@ -563,10 +562,10 @@ impl<T> ValuePool<T> {
         tmp
     }
 
-    /// Replaces the struct at `reference` with `value`. 
+    /// Replaces the struct at `reference` with `value`.
     /// If reference is out of bounds: returns `Err(value)`.
     /// Else: returns `Ok(struct at reference)`
-    /// 
+    ///
     /// # Example
     /// ```
     /// use value_pool::ValuePool;
@@ -574,24 +573,28 @@ impl<T> ValuePool<T> {
     /// pool.push(2);
     /// let ref_to_3 = pool.push(3);
     /// let ref_to_4 = pool.push(4);
-    /// 
+    ///
     /// let res = pool.replace(ref_to_3, Some(5));
     /// assert_eq!(res, Ok(Some(3)));
     /// assert_eq!(pool.get(ref_to_3), Some(&5));
-    /// 
+    ///
     /// let res = pool.replace(ref_to_3, None);
     /// assert_eq!(res, Ok(Some(5)));
     /// assert_eq!(pool.get(ref_to_3), None);
-    /// 
+    ///
     /// pool.remove(ref_to_4);
     /// let res = pool.replace(ref_to_4, Some(44));
     /// assert_eq!(res, Err(Some(44)));
-    /// 
+    ///
     /// let res = pool.replace(ref_to_4, None);
     /// assert_eq!(res, Err(None));
     /// ```
     #[inline]
-    pub fn replace(&mut self, reference: impl Into<ValueRef<T>>, mut value: Option<T>) -> Result<Option<T>, Option<T>> {
+    pub fn replace(
+        &mut self,
+        reference: impl Into<ValueRef<T>>,
+        mut value: Option<T>,
+    ) -> Result<Option<T>, Option<T>> {
         let reference: ValueRef<T> = reference.into();
         let accessed_value = self.store.get_mut(reference.index.get());
         match accessed_value {
@@ -601,7 +604,6 @@ impl<T> ValuePool<T> {
                 Ok(value)
             }
         }
-
     }
 
     /// Ensures at least `additional` elements can be stored without additional reallocations.
@@ -722,6 +724,9 @@ mod tests {
             std::mem::size_of::<ValueRef<Dummy>>(),
             std::mem::size_of::<Option<ValueRef<Dummy>>>()
         );
-        assert_eq!(std::mem::size_of::<UntypedValueRef>(), std::mem::size_of::<Option<UntypedValueRef>>());
+        assert_eq!(
+            std::mem::size_of::<UntypedValueRef>(),
+            std::mem::size_of::<Option<UntypedValueRef>>()
+        );
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "value_pool"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT"
 description = "This crate implements a ValuePool struct that makes the creation of self-referential data structures easier and safer."
@@ -10,6 +10,7 @@ readme = "Readme.md"
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
 all-features = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["lib"]
