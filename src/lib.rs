@@ -598,7 +598,7 @@ impl<T> ValuePool<T> {
         let reference: ValueRef<T> = reference.into();
         let accessed_value = self.store.get_mut(reference.index.get());
         match accessed_value {
-            None => return Err(value),
+            None => Err(value),
             Some(x) => {
                 std::mem::swap(&mut value, x);
                 Ok(value)
