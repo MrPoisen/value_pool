@@ -9,6 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-Dwarnings"
+  RUSTUP_PERMIT_COPY_RENAME: true # Ensures act (https://github.com/nektos/act) works: https://github.com/rust-lang/rustup/issues/2949#issuecomment-2584968659
 
 jobs:
   build_safe:

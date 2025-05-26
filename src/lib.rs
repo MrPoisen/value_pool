@@ -46,6 +46,7 @@
 
 use nonmax::NonMaxUsize;
 use std::{borrow::Borrow, hash::Hash, marker::PhantomData};
+pub mod counted_value_pool;
 pub mod smart_value_pool;
 
 /// Struct that stores a location of an item in [`ValuePool<T>`]. It implements [`Copy`].
@@ -494,11 +495,11 @@ impl<T> ValuePool<T> {
         }
         #[cfg(feature = "unsafe")]
         unsafe {
-            return ValueRef::new_nonmax(*self.open_indices.last().unwrap_unchecked());
+            ValueRef::new_nonmax(*self.open_indices.last().unwrap_unchecked())
         }
         #[cfg(not(feature = "unsafe"))]
         {
-            return ValueRef::new_nonmax(*self.open_indices.last().unwrap());
+            ValueRef::new_nonmax(*self.open_indices.last().unwrap())
         }
     }
 
